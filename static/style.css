@@ -1,0 +1,19 @@
+.nav{
+    overflow-x: hidden;
+    font-size: x-large;
+}
+.scrollable-container {
+    height: 450px; /* Set the desired height of the scrollable container */
+    overflow-y: auto;  
+    width: 100%; 
+      /* Enable vertical scrolling */
+    
+  }
+  .scrollable-content {
+    width: 100%; /* Ensure the content takes up the full width of the container */
+  }
+  body{
+    padding-bottom: 20px;
+  }
+ 
+  

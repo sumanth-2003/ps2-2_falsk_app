@@ -1,0 +1,323 @@
+{% extends 'base.html' %}
+{% block body %}
+<div class="container ">
+
+
+
+    <div class=" my-2 my-md-0 justify-content-center">
+        <form onsubmit="submitValue(event)" style=" box-sizing: border-box;">
+            <div class="mb-3">
+            </div>
+            <div class="mb-3 row">
+                <label for="buffer" class="form-label h5">TYPE OF ANALYSIS</label>
+                <select class="form-select mb-3" aria-label="Type of analysis" id="type" name="type">
+                    <option selected>--SELECT--</option>
+                    <option value="ndvi">NDVI</option>
+                    <option value="ndwi">NDWI</option>
+                    <option value="graph">Random Forest</option>
+
+                </select>
+                <div class="mb-3 col-md-6">
+                    <label for="fromdate" class="form-label h5">START DATE</label>
+                    <input type="date" class="form-control" id="fromdate" name="fromdate" value="2022-01-01">
+                </div>
+                <div class="mb-3 col-md-6">
+                    <label for="todate" class="form-label h5">END DATE</label>
+                    <input type="date" class="form-control" id="todate" name="todate" value="2023-02-10">
+                </div>
+
+            </div>
+            <button class="btn btn-secondary" id="toggle">SHOW RESULTS</button>
+
+        </form>
+        <button class="btn btn-secondary mt-3" onClick="mapClear()">CLEAR</button>
+    </div>
+    <div class="my-5 row ">
+        <div class=" justify-content-center">
+            <div class="mapouter " style="position: unset;" id="map">
+                <!-- <div class="gmap_canvas"><iframe width="600" height="500" id="gmap_canvas" src="https://maps.google.com/maps?q=15.733048,80.945512&t=&z=13&ie=UTF8&iwloc=&output=embed" frameborder="0" scrolling="no" marginheight="0" marginwidth="0"></iframe></div> -->
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<div class="row" >
+    <div class="col-md-6 mb-3">
+    <div class="scrollable-container card" id="card1" style="display: none;">
+        <div class="scrollable-content " id="res_img">
+
+        </div>
+    </div>
+    <canvas id="myChart"></canvas>
+    
+</div>
+
+    
+    <div class="col-md-6 mb-3">
+    <div class ="scrollable-container card card " style="display: none;" id="card2">
+        <div id="plot-container" class="scrollable-content ">
+    
+        </div>
+    </div>
+</div>
+</div>
+
+
+
+
+<style type="text/css">
+    #map {
+        height: 500px;
+        width: 100%;
+        border: 1px solid black;
+    }
+</style>
+
+
+<!-- JavaScript code to update the map -->
+<!-- <script type="text/javascript" src="https://maps.google.com/maps/api/js?sensor=false"></script> -->
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-draw/dist/leaflet.draw.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="https://cdn.plot.ly/plotly-2.24.1.min.js" charset="utf-8"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.7/dist/umd/popper.min.js"
+    integrity="sha384-zYPOMqeu1DAVkHiLqWBUTcbYfZ8osu1Nd6Z89ify25QV9guujx43ITvfi12/QExE"
+    crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.min.js"
+    integrity="sha384-Y4oOpwW3duJdCWv5ly8SCFYWqFDsfob/3GkgExXKV4idmbt98QcxXYs9UoXAB7BZ"
+    crossorigin="anonymous"></script>
+<script type="text/javascript">
+    var map;
+    var marker;
+    var map = L.map('map').setView([15.733048, 80.945512], 11);
+    var clist = [];
+    var area_colors = [];
+    var fetched = [];
+
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors',
+        maxZoom: 18,
+        id: 'osm'
+    }).addTo(map);
+
+    function getRandomColor() {
+        var letters = "0123456789ABCDEF";
+        var color = "#";
+        for (var i = 0; i < 6; i++) {
+            color += letters[Math.floor(Math.random() * 16)];
+        }
+        return color;
+    }
+
+    var drawnItems = new L.FeatureGroup();
+    map.addLayer(drawnItems);
+
+    var drawControl = new L.Control.Draw({
+        edit: {
+            featureGroup: drawnItems
+        },
+        draw: {
+            polygon: false,
+            circle: false,
+            rectangle: {
+                allowIntersection: false,
+                showArea: true,
+                editable: true,
+            },
+            marker: false,
+            polyline: false,
+            circlemarker: false
+        }
+    });
+    map.addControl(drawControl);
+
+
+    map.on(L.Draw.Event.CREATED, function (event) {
+        var layer = event.layer;
+        drawnItems.addLayer(layer);
+        let rand = getRandomColor()
+        area_colors.push(rand)
+        layer.setStyle({ fillColor: rand, color: rand });
+        getPolygonCoords(layer.getLatLngs());
+    });
+
+    map.on(L.Draw.Event.EDITED, function (e) {
+        if (drawnItems.getLayers().length > 1) {
+            drawnItems.removeLayer(e.layer);
+        }
+    });
+
+    function getPolygonCoords(coords) {
+        var latLngs = coords[0];
+        var polygonCoords = [];
+        for (var i = 0; i < latLngs.length; i++) {
+            polygonCoords.push([latLngs[i].lat, latLngs[i].lng]);
+        }
+        console.log(polygonCoords);
+        clist.push(polygonCoords);
+       
+    }
+    let img = document.getElementById("res_img")
+    let rf=document.getElementById("plot-container")
+    let chart=null
+    let canvas = document.getElementById('myChart');
+    function mapClear(){
+        drawnItems.clearLayers();
+        clist=[]
+        img.innerHTML=``
+        area_colors=[]
+        cardBlock1.style.display="none"
+        cardBlock2.style.display="none"
+        rf.innerHTML=`` 
+        chart.data.datasets = [];
+        chart.update();
+        var ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        flag=0;
+    }   
+
+    let toggleButton = document.getElementById("toggle")
+    let cardBlock1 = document.getElementById("card1")
+    let cardBlock2 = document.getElementById("card2")
+    toggleButton.addEventListener('click',()=>{
+        cardBlock1.style.display="block"
+        cardBlock2.style.display="block"
+
+    })
+    let flag=0;
+     async function submitValue(event) {
+        event.preventDefault()
+        if(!clist.length){
+            return Swal.fire('Error',"No area selected",'error')
+        }
+
+     
+        if(document.getElementById('type').value=='graph'){
+            for (let i = 0; i < clist.length; i++) {
+                let cor = clist[i];
+                let color=area_colors[i];
+                if (fetched.includes(cor)) {
+                    continue;
+                }
+            try {
+                const result = await fetch("/type/graph", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        coordinates: cor,
+                        fromdate: document.getElementById("fromdate").value,
+                        todate: document.getElementById("todate").value
+                    })
+
+                })
+                console.log("checking---123")
+                const data = await result.json()
+                console.log("checking---456")
+                console.log(data)
+                console.log("checking---789")
+                const plotData = await JSON.parse(data.plot);
+                console.log(plotData)
+                const graphDiv = document.createElement('div');
+                    graphDiv.id = 'graph-' + i;
+                    console.log(graphDiv.id)
+                    rf.appendChild(graphDiv);
+                    // Plot the graph inside the <div> element
+                    Plotly.newPlot(graphDiv.id, plotData);
+                    fetched.push(cor)
+                }
+                catch (error) {
+                    console.log(error)
+                    Swal.fire('Error', 'An error occured, please try again', 'error')
+                }
+                
+                
+            }
+            return
+        }
+        
+        for (let i = 0; i < clist.length; i++) {
+            let cor = clist[i];
+            let color=area_colors[i];
+            if (fetched.includes(cor)) {
+                continue;
+            }
+        
+            let data = {
+                coordinates: cor,
+                fromdate: document.getElementById("fromdate").value,
+                todate: document.getElementById("todate").value
+                
+
+            }
+            try {
+                const result = await fetch("/type/" + document.getElementById("type").value, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                })
+                const data1= await result.json()
+
+                if (flag==0) {
+                    flag=1;
+                    console.log("object")
+                    chart = new Chart(document.getElementById('myChart'), {
+                        type: 'line',
+                        data: {
+                            labels: data1.labels,
+                            datasets: []
+                        },
+                        options: {
+                            responsive: true,
+                            scales: {
+                                x: {
+                                    display: true
+                                },
+                                y: {
+                                    beginAtZero: true
+                                }
+                            }
+                        }
+                    });
+                }
+                img.innerHTML += `<div class ="card  mt-2" style="width:100%;"><div class="ms-3 mt-3"><svg width="40" height="20" style="margin-right: 10px;">
+                    <rect width="40" height="20" style="fill: ${color}; stroke: ${color}; stroke-width: 5; fill-opacity: 0.2;"></rect>
+                </svg> ${data1.area_name}</div><img id="res_img" src="data:image/png;base64, ${data1.plot_url}" alt="graph"> <div>`
+
+                    
+                    
+                    fetched.push(cor)
+                    console.log("0")
+                    chart.data.datasets.push({
+                        label: data1.area_name+"("+data1.type+")",
+                        data: data1.mean_res_rounded,
+                        fill: false,
+                        borderColor: area_colors[i],
+                        tension: 0.1
+                    })
+                    console.log("1")
+                    console.log(data1.mean_res_rounded, chart)
+                    chart.update()
+                    console.log("3")
+                }
+                catch (error) {
+                    console.log(error)
+                    img.innerHTML+= `Data not found.`
+                }
+                
+
+                
+        }
+    }
+
+</script>
+{% endblock %}
