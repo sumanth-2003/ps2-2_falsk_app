@@ -42,25 +42,25 @@
     </div>
 </div>
 
-<div class="row" >
+<div class="row">
     <div class="col-md-6 mb-3">
-    <div class="scrollable-container card" id="card1" style="display: none;">
-        <div class="scrollable-content " id="res_img">
+        <div class="scrollable-container card" id="card1" style="display: none;">
+            <div class="scrollable-content " id="res_img">
 
+            </div>
+        </div>
+        <canvas id="myChart"></canvas>
+
+    </div>
+
+
+    <div class="col-md-6 mb-3">
+        <div class="scrollable-container card card " style="display: none;" id="card2">
+            <div id="plot-container" class="scrollable-content ">
+
+            </div>
         </div>
     </div>
-    <canvas id="myChart"></canvas>
-    
-</div>
-
-    
-    <div class="col-md-6 mb-3">
-    <div class ="scrollable-container card card " style="display: none;" id="card2">
-        <div id="plot-container" class="scrollable-content ">
-    
-        </div>
-    </div>
-</div>
 </div>
 
 
@@ -161,71 +161,71 @@
         }
         console.log(polygonCoords);
         clist.push(polygonCoords);
-       
+
     }
     let img = document.getElementById("res_img")
-    let rf=document.getElementById("plot-container")
-    let chart=null
+    let rf = document.getElementById("plot-container")
+    let chart = null
     let canvas = document.getElementById('myChart');
-    function mapClear(){
+    function mapClear() {
         drawnItems.clearLayers();
-        clist=[]
-        img.innerHTML=``
-        area_colors=[]
-        cardBlock1.style.display="none"
-        cardBlock2.style.display="none"
-        rf.innerHTML=`` 
+        clist = []
+        img.innerHTML = ``
+        area_colors = []
+        cardBlock1.style.display = "none"
+        cardBlock2.style.display = "none"
+        rf.innerHTML = ``
         chart.data.datasets = [];
         chart.update();
         var ctx = canvas.getContext('2d');
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        flag=0;
-    }   
+        flag = 0;
+    }
 
     let toggleButton = document.getElementById("toggle")
     let cardBlock1 = document.getElementById("card1")
     let cardBlock2 = document.getElementById("card2")
-    toggleButton.addEventListener('click',()=>{
-        cardBlock1.style.display="block"
-        cardBlock2.style.display="block"
+    toggleButton.addEventListener('click', () => {
+        cardBlock1.style.display = "block"
+        cardBlock2.style.display = "block"
 
     })
-    let flag=0;
-     async function submitValue(event) {
+    let flag = 0;
+    async function submitValue(event) {
         event.preventDefault()
-        if(!clist.length){
-            return Swal.fire('Error',"No area selected",'error')
+        if (!clist.length) {
+            return Swal.fire('Error', "No area selected", 'error')
         }
 
-     
-        if(document.getElementById('type').value=='graph'){
+
+        if (document.getElementById('type').value == 'graph') {
             for (let i = 0; i < clist.length; i++) {
                 let cor = clist[i];
-                let color=area_colors[i];
+                let color = area_colors[i];
                 if (fetched.includes(cor)) {
                     continue;
                 }
-            try {
-                const result = await fetch("/type/graph", {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        coordinates: cor,
-                        fromdate: document.getElementById("fromdate").value,
-                        todate: document.getElementById("todate").value
-                    })
+                try {
+                    const result = await fetch("/type/graph", {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            coordinates: cor,
+                            fromdate: document.getElementById("fromdate").value,
+                            todate: document.getElementById("todate").value
+                        })
 
-                })
-                console.log("checking---123")
-                const data = await result.json()
-                console.log("checking---456")
-                console.log(data)
-                console.log("checking---789")
-                const plotData = await JSON.parse(data.plot);
-                console.log(plotData)
-                const graphDiv = document.createElement('div');
+                    })
+                    console.log("checking---123")
+                    const data = await result.json()
+                    console.log("checking---456")
+                    console.log(data)
+                    console.log("checking---789")
+                    const plotData = await JSON.parse(data.plot);
+                    console.log(plotData)
+                    const graphDiv = document.createElement('div');
                     graphDiv.id = 'graph-' + i;
                     console.log(graphDiv.id)
                     rf.appendChild(graphDiv);
@@ -237,24 +237,24 @@
                     console.log(error)
                     Swal.fire('Error', 'An error occured, please try again', 'error')
                 }
-                
-                
+
+
             }
             return
         }
-        
+
         for (let i = 0; i < clist.length; i++) {
             let cor = clist[i];
-            let color=area_colors[i];
+            let color = area_colors[i];
             if (fetched.includes(cor)) {
                 continue;
             }
-        
+
             let data = {
                 coordinates: cor,
                 fromdate: document.getElementById("fromdate").value,
                 todate: document.getElementById("todate").value
-                
+
 
             }
             try {
@@ -265,10 +265,10 @@
                     },
                     body: JSON.stringify(data)
                 })
-                const data1= await result.json()
+                const data1 = await result.json()
 
-                if (flag==0) {
-                    flag=1;
+                if (flag == 0) {
+                    flag = 1;
                     console.log("object")
                     chart = new Chart(document.getElementById('myChart'), {
                         type: 'line',
@@ -293,29 +293,29 @@
                     <rect width="40" height="20" style="fill: ${color}; stroke: ${color}; stroke-width: 5; fill-opacity: 0.2;"></rect>
                 </svg> ${data1.area_name}</div><img id="res_img" src="data:image/png;base64, ${data1.plot_url}" alt="graph"> <div>`
 
-                    
-                    
-                    fetched.push(cor)
-                    console.log("0")
-                    chart.data.datasets.push({
-                        label: data1.area_name+"("+data1.type+")",
-                        data: data1.mean_res_rounded,
-                        fill: false,
-                        borderColor: area_colors[i],
-                        tension: 0.1
-                    })
-                    console.log("1")
-                    console.log(data1.mean_res_rounded, chart)
-                    chart.update()
-                    console.log("3")
-                }
-                catch (error) {
-                    console.log(error)
-                    img.innerHTML+= `Data not found.`
-                }
-                
 
-                
+
+                fetched.push(cor)
+                console.log("0")
+                chart.data.datasets.push({
+                    label: data1.area_name + "(" + data1.type + ")",
+                    data: data1.mean_res_rounded,
+                    fill: false,
+                    borderColor: area_colors[i],
+                    tension: 0.1
+                })
+                console.log("1")
+                console.log(data1.mean_res_rounded, chart)
+                chart.update()
+                console.log("3")
+            }
+            catch (error) {
+                console.log(error)
+                img.innerHTML += `Data not found.`
+            }
+
+
+
         }
     }
 

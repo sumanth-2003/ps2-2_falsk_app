@@ -1,41 +1,36 @@
 from flask import Flask, render_template, request, redirect, jsonify
-from datetime import datetime
+# request: An object that represents the incoming HTTP request.
+# redirect: A function for redirecting to a different URL.
+from datetime import datetime#A module that provides classes for working with dates and times.
 import io, urllib, base64
-import datacube
-import matplotlib.pyplot as plt
+# io: A module that provides the fundamental file and stream classes.
+# urllib: A module for handling URLs.
+# base64: A module for encoding and decoding binary data using Base64 representation.
+import matplotlib.pyplot as plt# A module for creating and manipulating plots and figures.
 import matplotlib
-import matplotlib.gridspec as gridspec
-import pandas as pd
+import matplotlib.gridspec as gridspec # A module for specifying the geometry of the grid that a subplot will be placed on.
+import pandas as pd #A library for data manipulation and analysis. It provides data structures like DataFrame for working with structured data.
 from sklearn.model_selection import train_test_split
-from sklearn.ensemble import RandomForestRegressor
-import numpy as np
-import joblib
-import odc.algo
+from sklearn.ensemble import RandomForestRegressor #A class for creating a random forest regressor model.
+import numpy as np #A library for numerical computing in Python.
+import odc.algo # A module from the Open Data Cube library that provides various algorithms for working with remote sensing data.
 import plotly.io as pio
+import plotly.graph_objs as go #A module that contains classes for creating and manipulating Plotly graphs and charts.
 
-from geopy.geocoders import Nominatim
-
+from geopy.geocoders import Nominatim #converting between addresses and geographic coordinates.
 
 import warnings
-
 warnings.filterwarnings("ignore")
 
-
-import seaborn as sns
-
 from sklearn.ensemble import RandomForestRegressor
-
 from sklearn.metrics import mean_squared_error, r2_score
 
-import plotly.graph_objs as go
-import plotly.offline as pyoff
+matplotlib.use('Agg')#With the 'Agg' backend, Matplotlib can render the plots and save them directly to a file, such as a PNG image
+import datacube
+# this code first creates a datacube object. This object provides access to the Datacube API. Then, the code uses the load() method to load the remote sensing data for the study area. The load() method takes a number of arguments, including the product name, the x and y coordinates of the study area, the time range, and the measurements that you want to load.
+# Once the data is loaded, the code can then be used to perform analysis on the data. For example, you could use the ndvi() method to calculate the NDVI index for the study area.
 
-matplotlib.use('Agg')
-
-dc = datacube.Datacube(app="Flask_Text")
-
-app = Flask(__name__)
-
+app = Flask(__name__)#used to create a instance of flask app which is used to create apis
 @app.route('/', methods=['GET'])
 def home():
     return render_template("index.html")
