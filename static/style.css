@@ -15,5 +15,33 @@
   body{
     padding-bottom: 20px;
   }
- 
+  .rectangle {
+    width: 40;
+    height: 20;
+    margin-bottom: 10px;
+  }
+
+  .loader {
+    border: 7px solid #f3f3f3;
+    border-top: 7px solid #3498db;
+    border-radius: 50%;
+    width: 75px;
+    height: 75px;
+    animation: spin 1s linear infinite;
+    margin: auto;
+    margin-top: 10px;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+.hidden {
+    display: none;
+}
   

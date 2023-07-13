@@ -24,7 +24,7 @@ warnings.filterwarnings("ignore")
 
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error, r2_score
-
+import xarray as xr
 matplotlib.use('Agg')#With the 'Agg' backend, Matplotlib can render the plots and save them directly to a file, such as a PNG image
 import datacube
 # this code first creates a datacube object. This object provides access to the Datacube API. Then, the code uses the load() method to load the remote sensing data for the study area. The load() method takes a number of arguments, including the product name, the x and y coordinates of the study area, the time range, and the measurements that you want to load.
@@ -62,6 +62,9 @@ def analysis(analysis_type):
                 res = (ds.nir - ds.red) / (ds.nir + ds.red)
             elif analysis_type=="ndwi":
                 res = (ds.green - ds.nir) / (ds.green + ds.nir)
+            elif analysis_type=="evi":
+                res= 2.5 * ((ds.nir - ds.red) / (ds.nir + 6 * ds.red - 7.5 * ds.blue + 1))
+                res=xr.where(~np.isfinite(res),0.0,res)
             elif analysis_type=="graph":
                 ndvi = (ds.nir - ds.red) / (ds.nir + ds.red)
                 evi = 2.5 * ((ds.nir - ds.red) / (ds.nir + 6 * ds.red - 7.5 * ds.blue + 1))
@@ -108,24 +111,10 @@ def analysis(analysis_type):
                 
                 X = df[["year", "month"]]
                 y = df["dense_forest"]
-                y2 = df["open_forest"]
-                y3 = df["sparse_forest"]
-
                 rf_regressor = RandomForestRegressor(n_estimators=100, random_state=101)
                 rf_regressor.fit(X, y)
                 y_pred = rf_regressor.predict([[2024,5]])
                 print(df,y_pred)
-
-                rf_regressor2 = RandomForestRegressor(n_estimators=100, random_state=101)
-                rf_regressor.fit(X, y2)
-                y_pred2 = rf_regressor.predict([[2024,5]])
-                print(df,y_pred2)
-
-                rf_regressor3 = RandomForestRegressor(n_estimators=100, random_state=101)
-                rf_regressor.fit(X, y3)
-                y_pred3 = rf_regressor.predict([[2024,5]])
-                print(df,y_pred3)
-
 
                 df["year-month"] = df["year"].astype('str') + "-" + df["month"].astype('str')
                 X["year-month"] = X["year"].astype('str') + "-" + X["month"].astype('str')
@@ -135,36 +124,16 @@ def analysis(analysis_type):
                 go.Scatter(
                     x = df['year-month'],
                     y = df['dense_forest']/1000000,
-                    name = "Dense Actual"
+                    name = "forest Actual"
                 ),
                 go.Scatter(
                     x = ['2024-05'],
                     y = y_pred/1000000,
-                    name = "Dense Predicted"
-                ),
-                go.Scatter(
-                    x = df['year-month'],
-                    y = df['open_forest']/1000000,
-                    name = "Open Actual"
-                ),
-                go.Scatter(
-                    x = ['2024-05'],
-                    y = y_pred2/1000000,
-                    name = "Open Predicted"
-                ),
-                go.Scatter(
-                    x = df['year-month'],
-                    y = df['sparse_forest']/1000000,
-                    name = "Sparse Actual"
-                ),
-                go.Scatter(
-                    x = ['2024-05'],
-                    y = y_pred3/1000000,
-                    name = "Sparse Predicted"
-                ),
+                    name = "forest Predicted"
+                )
                 ]
 
-                print("Plot plotted")
+                
 
                 plot_layout = go.Layout(
                     title='Forest Cover'
@@ -194,6 +163,9 @@ def analysis(analysis_type):
                 title = 'Water'
                 # cmap = 'RdBu'
                 cmap="Blues"
+            elif analysis_type=="evi":
+                title = "EVI"
+                cmap='viridis'
 
             sub_res = res.isel(time=[0, -1])
             mean_res = res.mean(dim=['latitude', 'longitude'], skipna=True)
@@ -208,20 +180,20 @@ def analysis(analysis_type):
             timestamp = now.strftime("%d/%m/%Y at %I:%M:%S %p")
             plt.xlabel(timestamp)
 
-            plt.figure(figsize=(10, 6))
-            gs = gridspec.GridSpec(1,2)
+            # plt.figure(figsize=(10, 6))
+            # gs = gridspec.GridSpec(1,2)
 
-            plt.subplot(gs[0,0])
-            plt.imshow(res_start, cmap=cmap, vmin=-1, vmax=1)
-            plt.title(title+' '+data['fromdate'][:4])
+            # plt.subplot(gs[0,0])
+            # plt.imshow(res_start, cmap=cmap, vmin=-1, vmax=1)
+            # plt.title(title+' '+data['fromdate'][:4])
 
-            plt.subplot(gs[0,1])
-            plt.imshow(res_end, cmap=cmap, vmin=-1, vmax=1)
-            plt.title(title+' '+data['todate'][:4])
+            # plt.subplot(gs[0,1])
+            # plt.imshow(res_end, cmap=cmap, vmin=-1, vmax=1)
+            # plt.title(title+' '+data['todate'][:4])
 
             
 
-            plt.colorbar()
+            # plt.colorbar()
 
             now = datetime.now()
             timestamp = now.strftime("%d/%m/%Y at %I:%M:%S %p")

@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% block body %}
-<div class="container ">
+<div class="container">
 
 
 
@@ -11,12 +11,21 @@
             <div class="mb-3 row">
                 <label for="buffer" class="form-label h5">TYPE OF ANALYSIS</label>
                 <select class="form-select mb-3" aria-label="Type of analysis" id="type" name="type">
-                    <option selected>--SELECT--</option>
+                    <option selected value="none">--SELECT--</option>
                     <option value="ndvi">NDVI</option>
                     <option value="ndwi">NDWI</option>
+                    <option value="evi">EVI</option>
                     <option value="graph">Random Forest</option>
 
                 </select>
+                <div class="my-5 row ">
+                    <div class=" justify-content-center">
+                        <div class="mapouter " style="position: unset;" id="map">
+                            <!-- <div class="gmap_canvas"><iframe width="600" height="500" id="gmap_canvas" src="https://maps.google.com/maps?q=15.733048,80.945512&t=&z=13&ie=UTF8&iwloc=&output=embed" frameborder="0" scrolling="no" marginheight="0" marginwidth="0"></iframe></div> -->
+                        </div>
+                    </div>
+            
+                </div>
                 <div class="mb-3 col-md-6">
                     <label for="fromdate" class="form-label h5">START DATE</label>
                     <input type="date" class="form-control" id="fromdate" name="fromdate" value="2022-01-01">
@@ -27,23 +36,17 @@
                 </div>
 
             </div>
-            <button class="btn btn-secondary" id="toggle">SHOW RESULTS</button>
+            <button class="btn btn-success" id="toggle">SHOW RESULTS</button>
+            <button class="btn btn-danger" style="float: right;" onClick="mapClear(event)">CLEAR</button>
 
         </form>
-        <button class="btn btn-secondary mt-3" onClick="mapClear()">CLEAR</button>
     </div>
-    <div class="my-5 row ">
-        <div class=" justify-content-center">
-            <div class="mapouter " style="position: unset;" id="map">
-                <!-- <div class="gmap_canvas"><iframe width="600" height="500" id="gmap_canvas" src="https://maps.google.com/maps?q=15.733048,80.945512&t=&z=13&ie=UTF8&iwloc=&output=embed" frameborder="0" scrolling="no" marginheight="0" marginwidth="0"></iframe></div> -->
-            </div>
-        </div>
-
-    </div>
+    <div class="loader hidden" id="loader"></div>
+    
 </div>
 
-<div class="row">
-    <div class="col-md-6 mb-3">
+<div class="row mt-5" id="row1">
+    <div class="col-md-6 mb-3 mt-2">
         <div class="scrollable-container card" id="card1" style="display: none;">
             <div class="scrollable-content " id="res_img">
 
@@ -54,7 +57,7 @@
     </div>
 
 
-    <div class="col-md-6 mb-3">
+    <div class="col-md-6 mb-3 mt-2">
         <div class="scrollable-container card card " style="display: none;" id="card2">
             <div id="plot-container" class="scrollable-content ">
 
@@ -97,7 +100,7 @@
     var map = L.map('map').setView([15.733048, 80.945512], 11);
     var clist = [];
     var area_colors = [];
-    var fetched = [];
+    var fetched = { 'ndvi': [], 'ndwi': [], 'evi': [], 'graph': [] };
 
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -113,6 +116,19 @@
             color += letters[Math.floor(Math.random() * 16)];
         }
         return color;
+    }
+    function showLoader() {
+        const loader = document.getElementById('loader');
+        const toggleButton = document.getElementById('toggle');
+        toggleButton.disabled = true;
+        loader.classList.remove('hidden');
+    }
+
+    function hideLoader() {
+        const loader = document.getElementById('loader');
+        const toggleButton = document.getElementById('toggle');
+        toggleButton.disabled = false;
+        loader.classList.add('hidden');
     }
 
     var drawnItems = new L.FeatureGroup();
@@ -167,7 +183,8 @@
     let rf = document.getElementById("plot-container")
     let chart = null
     let canvas = document.getElementById('myChart');
-    function mapClear() {
+    function mapClear(e) {
+        e.preventDefault();
         drawnItems.clearLayers();
         clist = []
         img.innerHTML = ``
@@ -180,6 +197,7 @@
         var ctx = canvas.getContext('2d');
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         flag = 0;
+        fetched = { 'ndvi': [], 'ndwi': [], 'evi': [], 'graph': [] };
     }
 
     let toggleButton = document.getElementById("toggle")
@@ -190,19 +208,22 @@
         cardBlock2.style.display = "block"
 
     })
+
+
+
     let flag = 0;
     async function submitValue(event) {
         event.preventDefault()
-        if (!clist.length) {
+        if (!clist.length || document.getElementById('type').value == 'none') {
             return Swal.fire('Error', "No area selected", 'error')
         }
-
+        showLoader();
 
         if (document.getElementById('type').value == 'graph') {
             for (let i = 0; i < clist.length; i++) {
                 let cor = clist[i];
                 let color = area_colors[i];
-                if (fetched.includes(cor)) {
+                if (fetched.graph.includes(cor)) {
                     continue;
                 }
                 try {
@@ -227,29 +248,47 @@
                     console.log(plotData)
                     const graphDiv = document.createElement('div');
                     graphDiv.id = 'graph-' + i;
+                    // graphDiv.innerHTML += `<div class ="card  mt-2" style="width:100%;"><div class="ms-3 mt-3"><svg width="40" height="20" style="margin-right: 10px;">
+                    // <rect width="40" height="20" style="fill: ${color}; stroke: ${color}; stroke-width: 5; fill-opacity: 0.2;"></rect>g`
+                    
+                    // const rectangleDiv = document.createElement('div');
+                    // rectangleDiv.classList.add('rectangle');
+                    // rectangleDiv.style.backgroundColor = color;
+                    // graphDiv.appendChild(rectangleDiv);
+
+
+
                     console.log(graphDiv.id)
                     rf.appendChild(graphDiv);
                     // Plot the graph inside the <div> element
                     Plotly.newPlot(graphDiv.id, plotData);
-                    fetched.push(cor)
+                    fetched.graph.push(cor);
+                    hideLoader();
                 }
                 catch (error) {
                     console.log(error)
+                    hideLoader();
                     Swal.fire('Error', 'An error occured, please try again', 'error')
                 }
 
 
             }
+            document.getElementById('row1').scrollIntoView({ behavior: 'smooth' });
             return
         }
 
         for (let i = 0; i < clist.length; i++) {
             let cor = clist[i];
             let color = area_colors[i];
-            if (fetched.includes(cor)) {
+            if (fetched.ndvi.includes(cor) && document.getElementById("type").value == 'ndvi') {
                 continue;
             }
-
+            else if (fetched.ndwi.includes(cor) && document.getElementById("type").value == 'ndwi') {
+                continue;
+            }
+            else if (fetched.evi.includes(cor) && document.getElementById("type").value == 'evi') {
+                continue;
+            }
             let data = {
                 coordinates: cor,
                 fromdate: document.getElementById("fromdate").value,
@@ -295,7 +334,15 @@
 
 
 
-                fetched.push(cor)
+                    if(document.getElementById("type").value=='ndvi'){
+                        fetched.ndvi.push(cor);
+                    }
+                    else if(document.getElementById("type").value=='evi'){
+                        fetched.evi.push(cor);
+                    }
+                    else{
+                        fetched.ndwi.push(cor);
+                    }
                 console.log("0")
                 chart.data.datasets.push({
                     label: data1.area_name + "(" + data1.type + ")",
@@ -308,15 +355,18 @@
                 console.log(data1.mean_res_rounded, chart)
                 chart.update()
                 console.log("3")
+                hideLoader();
             }
             catch (error) {
                 console.log(error)
+                hideLoader();
                 img.innerHTML += `Data not found.`
             }
 
 
 
         }
+        document.getElementById('row1').scrollIntoView({ behavior: 'smooth' });
     }
 
 </script>
