@@ -24,7 +24,7 @@
                             <!-- <div class="gmap_canvas"><iframe width="600" height="500" id="gmap_canvas" src="https://maps.google.com/maps?q=15.733048,80.945512&t=&z=13&ie=UTF8&iwloc=&output=embed" frameborder="0" scrolling="no" marginheight="0" marginwidth="0"></iframe></div> -->
                         </div>
                     </div>
-            
+
                 </div>
                 <div class="mb-3 col-md-6">
                     <label for="fromdate" class="form-label h5">START DATE</label>
@@ -41,8 +41,12 @@
 
         </form>
     </div>
-    <div class="loader hidden" id="loader"></div>
-    
+    <!-- <div class="loader hidden" id="loader"></div> -->
+    <div id="loading" class="loading" style="display:none">
+        <div class="spinner" role="status">
+            <span class="sr-only"></span>
+        </div>
+    </div>
 </div>
 
 <div class="row mt-5" id="row1">
@@ -97,7 +101,7 @@
 <script type="text/javascript">
     var map;
     var marker;
-    var map = L.map('map').setView([15.733048, 80.945512], 11);
+    var map = L.map('map').setView([15.733048, 80.945512], 9);
     var clist = [];
     var area_colors = [];
     var fetched = { 'ndvi': [], 'ndwi': [], 'evi': [], 'graph': [] };
@@ -117,19 +121,19 @@
         }
         return color;
     }
-    function showLoader() {
-        const loader = document.getElementById('loader');
-        const toggleButton = document.getElementById('toggle');
-        toggleButton.disabled = true;
-        loader.classList.remove('hidden');
-    }
+    // function showLoader() {
+    //     const loader = document.getElementById('loader');
+    //     const toggleButton = document.getElementById('toggle');
+    //     toggleButton.disabled = true;
+    //     loader.classList.remove('hidden');
+    // }
 
-    function hideLoader() {
-        const loader = document.getElementById('loader');
-        const toggleButton = document.getElementById('toggle');
-        toggleButton.disabled = false;
-        loader.classList.add('hidden');
-    }
+    // function hideLoader() {
+    //     const loader = document.getElementById('loader');
+    //     const toggleButton = document.getElementById('toggle');
+    //     toggleButton.disabled = false;
+    //     loader.classList.add('hidden');
+    // }
 
     var drawnItems = new L.FeatureGroup();
     map.addLayer(drawnItems);
@@ -154,6 +158,23 @@
     map.addControl(drawControl);
 
 
+
+    fetch('/datasets').then(data => data.json()).then(async data => {
+        console.log(data.coordinates)
+        for (const bounds of data.coordinates) {
+            let boundsReversed = bounds.map((e) => {
+                return e.map((e1) => {
+                    return [e1[1], e1[0]]
+                })
+            })
+            var boundingBox = L.polygon(boundsReversed, { color: 'red', weight: 2, fill: false });
+            boundingBox.addTo(map);
+        }
+    }).catch(error => console.log(error))
+
+
+
+
     map.on(L.Draw.Event.CREATED, function (event) {
         var layer = event.layer;
         drawnItems.addLayer(layer);
@@ -170,13 +191,13 @@
     });
 
 
-    var bounds = [[18.8823135665104,78.1492640061872],[19.8871534401748,79.1940462547119]];
+    var bounds = [[18.8823135665104, 78.1492640061872], [19.8871534401748, 79.1940462547119]];
 
-// create an orange rectangle
-    L.rectangle(bounds, {color: "#72A0C1", weight: 1}).addTo(map);
+    // create an orange rectangle
+    L.rectangle(bounds, { color: "#72A0C1", weight: 1 }).addTo(map);
 
-// zoom the map to the rectangle bounds
-// map.fitBounds(bounds);
+    // zoom the map to the rectangle bounds
+    // map.fitBounds(bounds);
 
     function getPolygonCoords(coords) {
         var latLngs = coords[0];
@@ -226,7 +247,8 @@
         if (!clist.length || document.getElementById('type').value == 'none') {
             return Swal.fire('Error', "No area selected", 'error')
         }
-        showLoader();
+        // showLoader();
+        document.getElementById('loading').style.display = 'block';
 
         if (document.getElementById('type').value == 'graph') {
             for (let i = 0; i < clist.length; i++) {
@@ -256,33 +278,60 @@
                     const plotData = await JSON.parse(data.plot);
                     console.log(plotData)
                     const graphDiv = document.createElement('div');
-                    graphDiv.id = 'graph-' + i;
+                    // graphDiv.id = 'graph-' + i;
                     // graphDiv.innerHTML += `<div class ="card  mt-2" style="width:100%;"><div class="ms-3 mt-3"><svg width="40" height="20" style="margin-right: 10px;">
                     // <rect width="40" height="20" style="fill: ${color}; stroke: ${color}; stroke-width: 5; fill-opacity: 0.2;"></rect>g`
-                    
+
                     // const rectangleDiv = document.createElement('div');
                     // rectangleDiv.classList.add('rectangle');
                     // rectangleDiv.style.backgroundColor = color;
                     // graphDiv.appendChild(rectangleDiv);
 
 
+                    let plotId = Date.now()
+                    graphDiv.innerHTML = `<div class="card my-2 shadow" id="${'plotDiv' + plotId}">
+                        <div class="card-body">
+                            <div class="justify-content-center align-items-center mb-2" style="display: flex;">
+                                <svg width="20" height="20" style="margin-right: 10px;">
+                                    <rect width="20" height="20" style="fill: ${color}; stroke: ${color}; stroke-width: 5; fill-opacity: 0.2;"></rect>
+                                </svg>
+                                <h5 class="card-title mb-0">${data.type?.toUpperCase()} - ${data.area_name}</h5>
+                            </div>
+                            <div style="overflow-x: auto;">
+                                <div id="${'plot' + plotId}"></div>
+                            </div>
+                        </div>
+                    </div>`
 
-                    console.log(graphDiv.id)
-                    rf.appendChild(graphDiv);
-                    // Plot the graph inside the <div> element
-                    Plotly.newPlot(graphDiv.id, plotData);
-                    fetched.graph.push(cor);
-                    hideLoader();
+
+
+
+
+                    let parentDiv = document.getElementById('plot-container')
+                    if (parentDiv.firstChild) {
+                        parentDiv.insertBefore(graphDiv, parentDiv.firstChild);
+                    } else {
+                        parentDiv.appendChild(graphDiv);
+                    }
+                    Plotly.newPlot('plot' + plotId, plotData);
+
+                    // console.log(graphDiv.id)
+                    // rf.appendChild(graphDiv);
+                    // // Plot the graph inside the <div> element
+                    // Plotly.newPlot(graphDiv.id, plotData);
+                    // fetched.graph.push(cor);
                 }
                 catch (error) {
                     console.log(error)
-                    hideLoader();
                     Swal.fire('Error', 'An error occured, please try again', 'error')
+                }
+                finally{
+                    document.getElementById('loading').style.display = 'none';   
+                    document.getElementById('row1').scrollIntoView({ behavior: 'smooth' });
                 }
 
 
             }
-            document.getElementById('row1').scrollIntoView({ behavior: 'smooth' });
             return
         }
 
@@ -343,15 +392,15 @@
 
 
 
-                    if(document.getElementById("type").value=='ndvi'){
-                        fetched.ndvi.push(cor);
-                    }
-                    else if(document.getElementById("type").value=='evi'){
-                        fetched.evi.push(cor);
-                    }
-                    else{
-                        fetched.ndwi.push(cor);
-                    }
+                if (document.getElementById("type").value == 'ndvi') {
+                    fetched.ndvi.push(cor);
+                }
+                else if (document.getElementById("type").value == 'evi') {
+                    fetched.evi.push(cor);
+                }
+                else {
+                    fetched.ndwi.push(cor);
+                }
                 console.log("0")
                 chart.data.datasets.push({
                     label: data1.area_name + "(" + data1.type + ")",
@@ -371,11 +420,14 @@
                 hideLoader();
                 img.innerHTML += `Data not found.`
             }
+            finally{
+                    document.getElementById('loading').style.display = 'none';   
+                    document.getElementById('row1').scrollIntoView({ behavior: 'smooth' });
+                }
 
 
 
         }
-        document.getElementById('row1').scrollIntoView({ behavior: 'smooth' });
     }
 
 </script>

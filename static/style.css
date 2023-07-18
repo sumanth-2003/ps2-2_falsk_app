@@ -21,7 +21,7 @@
     margin-bottom: 10px;
   }
 
-  .loader {
+  /* .loader {
     border: 7px solid #f3f3f3;
     border-top: 7px solid #3498db;
     border-radius: 50%;
@@ -43,5 +43,33 @@
 
 .hidden {
     display: none;
+} */
+
+.loading{
+  padding: 25px;
+  background-color: rgba(0,0,0,0.3);
+  border-radius: 10px;
 }
-  
+
+
+.loading {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 9999;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(0, 0, 0, 0.1);
+  border-top-color: #3498db;
+  border-radius: 50%;
+  animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}

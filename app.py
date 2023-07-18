@@ -69,84 +69,86 @@ def analysis(analysis_type):
                 ndvi = (ds.nir - ds.red) / (ds.nir + ds.red)
                 evi = 2.5 * ((ds.nir - ds.red) / (ds.nir + 6 * ds.red - 7.5 * ds.blue + 1))
 
-                ndvi_threshold = 0.4
-                evi_threshold = 0.2
-
-                forest_mask_ndvi = np.where(ndvi > ndvi_threshold, 1, 0)
-                forest_mask_evi = np.where(evi > evi_threshold, 1, 0)
-
-                forest = np.logical_and(forest_mask_ndvi, forest_mask_evi)
-
                 # Create forest masks based on NDVI and EVI thresholds
-                dense_forest_mask = np.where((ndvi > ndvi_threshold) & (evi > evi_threshold), 1, 0)
-                open_forest_mask = np.where((ndvi > ndvi_threshold) & (evi <= evi_threshold), 1, 0)
-                sparse_forest_mask = np.where((ndvi <= ndvi_threshold) & (evi <= evi_threshold), 1, 0)
+                forest_mask = np.where((ndvi > 0.5) & (evi > 0.2), 1, 0)
 
                 # Calculate the area of each pixel
                 pixel_area = abs(ds.geobox.affine[0] * ds.geobox.affine[4])
+                print('pixel_area', pixel_area)
 
-                data = [['day', 'month', 'year', 'dense_forest', 'open_forest', 'sparse_forest', 'forest', 'total']]
-                print(dense_forest_mask.shape[0])
-                for i in range(dense_forest_mask.shape[0]):
+                data = [['day', 'month', 'year', 'forest', 'total']]
+
+                for i in range(forest_mask.shape[0]):
                     data_time = str(ndvi.time[i].values).split("T")[0]
-                    print(data_time)
                     new_data_time = data_time.split("-")
+
                     # Calculate the forest cover area for each forest type
-                    dense_forest_cover_area = np.sum(dense_forest_mask[i]) * pixel_area
-                    open_forest_cover_area = np.sum(open_forest_mask[i]) * pixel_area
-                    sparse_forest_cover_area = np.sum(sparse_forest_mask[i]) * pixel_area
-                    # Calculate the total forest cover area
-                    total_forest_cover_area = dense_forest_cover_area + open_forest_cover_area + sparse_forest_cover_area
+                    forest_cover_area = np.sum(forest_mask[i]) * pixel_area
+
                     original_array = np.where(ndvi > -10, 1, 0)
                     original = np.sum(original_array[i]) * pixel_area
                     
                     data.append([new_data_time[2], new_data_time[1], new_data_time[0],
-                                dense_forest_cover_area, open_forest_cover_area,
-                                sparse_forest_cover_area, total_forest_cover_area, original])
-                    
-                   
-                df = pd.DataFrame(data[1:], columns=data[0])
-
-                df["year-month"] = df["year"].astype('str') + "-" + df["month"].astype('str')
+                                forest_cover_area, original])
                 
+                df = pd.DataFrame(data[1:], columns=data[0])
+                df["year-month"] = df["year"].astype('str') + "-" + df["month"].astype('str')
+
+                grouped_df = df.groupby(['year', 'month'])
+
+                # Step 3: Calculate the mean of 'forest_field' for each group
+                mean_forest_field = grouped_df['forest'].mean()
+
+                # Step 4: Optional - Reset the index of the resulting DataFrame
+                mean_forest_field = mean_forest_field.reset_index()
+                print(mean_forest_field)
+
+                df = mean_forest_field
+
                 X = df[["year", "month"]]
-                y = df["dense_forest"]
+                y = df["forest"]
+
                 rf_regressor = RandomForestRegressor(n_estimators=100, random_state=101)
                 rf_regressor.fit(X, y)
-                y_pred = rf_regressor.predict([[2024,5]])
-                print(df,y_pred)
+                y_pred = rf_regressor.predict(X)
+                print(df, y_pred)
 
                 df["year-month"] = df["year"].astype('str') + "-" + df["month"].astype('str')
                 X["year-month"] = X["year"].astype('str') + "-" + X["month"].astype('str')
 
-                # Plot monthly forest
+                print("year-month done")
+
                 plot_data = [
-                go.Scatter(
-                    x = df['year-month'],
-                    y = df['dense_forest']/1000000,
-                    name = "forest Actual"
-                ),
-                go.Scatter(
-                    x = ['2024-05'],
-                    y = y_pred/1000000,
-                    name = "forest Predicted"
-                )
+                    go.Scatter(
+                        x = df['year-month'],
+                        y = df['forest']/1000000,
+                        name = "Forest Actual"
+                    ),
+                    go.Scatter(
+                        x = df['year-month'],
+                        y = y_pred/1000000,
+                        name = "Forest Predicted"
+                    )
                 ]
 
-                
+                print("Plot plotted")
 
                 plot_layout = go.Layout(
                     title='Forest Cover'
                 )
                 fig = go.Figure(data=plot_data, layout=plot_layout)
 
+                fig.update_layout(
+                    xaxis_title="Year-Month",
+                    yaxis_title="Forest Area (sq.km.)"
+                )
                 # Convert plot to JSON
                 plot_json = pio.to_json(fig)
 
-                
+                area_name = get_area_name(np.mean(study_area_lat), np.mean(study_area_lon))
+                print(area_name)
 
-                return jsonify({"plot": plot_json})
-
+                return jsonify({"plot": plot_json, "type": "Random Forest Analysis", "area_name": area_name})
             else:
                 return jsonify({"error": "Invalid type"})
 
@@ -227,7 +229,27 @@ def get_area_name(latitude, longitude):
     else:
         return "City name not found"
 
+@app.route('/datasets', methods=['GET'])
+def datasets():
+    dc = datacube.Datacube(app='datacube-example')
+    product_name = ['s2a_sen2cor_granule']
 
+    p = []
+
+    for j in product_name:
+        datasets = dc.find_datasets(product=j)
+        d = []
+        if len(datasets) == 0:
+            print('No datasets found for the specified query parameters.')
+        else:
+            for i in datasets:
+                ds_loc = i.metadata_doc['geometry']['coordinates']
+                d.append(ds_loc)
+        unique_list = [x for i, x in enumerate(d) if x not in d[:i]]
+        p+=unique_list
+    unique_list = [x for i, x in enumerate(p) if x not in p[:i]]
+    print(unique_list)
+    return jsonify({'coordinates': unique_list})
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')
